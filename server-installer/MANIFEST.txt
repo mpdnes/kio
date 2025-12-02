@@ -1,0 +1,145 @@
+Server Installation Package Manifest
+=====================================
+
+Package Created: $(date)
+Package Version: 1.0
+Source Server: Ubuntu 24.04 LTS
+
+Contents:
+---------
+
+Documentation:
+  README.md                     - Complete installation guide with detailed steps
+  QUICK_START.md                - Fast-track installation instructions
+  TROUBLESHOOTING.md            - Common issues and solutions guide
+  MANIFEST.txt                  - This file
+
+Applications:
+  applications/snipeit.tar.gz   - Complete Snipe-IT installation (286MB)
+  applications/                 - Application archives directory
+
+Databases:
+  databases/snipeit.sql         - Full Snipe-IT database export (3.6MB)
+  databases/credentials.txt     - Database credential templates
+
+Configuration Files:
+  config/apache/kiosk.conf      - Kiosk Apache virtual host configuration
+  config/apache/snipeit.conf    - Snipe-IT Apache virtual host configuration
+  config/apache/ports.conf      - Apache ports configuration
+  config/apache/required_modules.txt - List of required Apache modules
+  config/php/version.txt        - PHP version information
+  config/php/php_settings.txt   - PHP configuration settings
+  config/firewall_rules.txt     - UFW firewall rules export
+  config/required_packages.txt  - Complete list of installed packages
+  config/kiosk_github.txt       - Instructions for cloning Kiosk app
+  config/NEW_SERVER_IP.txt      - Placeholder for new server IP address
+
+Scripts:
+  scripts/install.sh            - Main automated installation script
+  scripts/verify.sh             - Post-installation verification script
+  scripts/backup.sh             - Create backups of current installation
+  scripts/uninstall.sh          - Complete removal/cleanup script
+
+Installation Components:
+------------------------
+
+Web Server:
+  - Apache 2.4.58
+  - Ports: 80, 443 (Snipe-IT), 8080, 8443 (Kiosk)
+  - Modules: SSL, WSGI, Rewrite, Headers
+
+Database:
+  - MariaDB 10.11.13
+  - Databases: snipeit
+  - Users: snipeit_user
+
+Application Server:
+  - PHP 8.3 (for Snipe-IT)
+  - Python 3.x with WSGI (for Kiosk)
+  - Redis Server (caching)
+
+Security:
+  - UFW Firewall
+  - Self-signed SSL certificates (replaceable with Let's Encrypt)
+  - Modern TLS configuration
+
+Applications Included:
+----------------------
+
+1. Snipe-IT Asset Management
+   - Full application files
+   - Complete database with data
+   - Public uploads directory
+   - Configured for ports 80/443
+
+2. Kiosk Application
+   - Instructions to clone from GitHub
+   - Apache configuration ready
+   - Python virtual environment setup guide
+   - Configured for ports 8080/8443
+
+What's NOT Included:
+--------------------
+
+- Kiosk source code (clone from your GitHub repository)
+- Production SSL certificates (use Let's Encrypt)
+- Custom passwords (set during installation)
+- Server-specific .env configurations (templates provided)
+
+Installation Time Estimate:
+----------------------------
+
+Automated installation: 10-15 minutes
+Manual post-install steps: 5-10 minutes
+Total: ~20-25 minutes
+
+Support Scripts:
+----------------
+
+backup.sh      - Create full system backup (databases, configs, applications)
+verify.sh      - Verify all services and configurations are working
+uninstall.sh   - Complete removal of all installed components
+
+Package Size:
+-------------
+
+Total Archive: ~285MB
+  - Snipe-IT application: 286MB
+  - Database dump: 3.6MB
+  - Configurations: <1MB
+  - Scripts and docs: <1MB
+
+System Requirements:
+--------------------
+
+- Ubuntu 24.04 LTS (fresh installation recommended)
+- 2GB RAM minimum
+- 20GB available disk space
+- Root or sudo access
+- Internet connection for package installation
+
+Post-Installation Tasks:
+------------------------
+
+1. Run mysql_secure_installation
+2. Update database credentials in .env files
+3. Clone Kiosk app from GitHub
+4. Install Kiosk Python dependencies
+5. Configure Kiosk .env file
+6. Install Let's Encrypt certificates (production)
+7. Update IP addresses/domain names in configurations
+
+Notes:
+------
+
+- All scripts are located in scripts/ directory
+- All scripts are executable (chmod +x)
+- Configuration files retain original permissions
+- Database exports are uncompressed SQL
+- Application archives exclude cache and log directories
+- Self-signed SSL certificates valid for 365 days
+- Firewall configured for all required ports
+
+For detailed instructions, see README.md
+For quick installation, see QUICK_START.md
+For troubleshooting, see TROUBLESHOOTING.md

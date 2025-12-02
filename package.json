@@ -1,0 +1,26 @@
+{
+  "name": "equipment-kiosk",
+  "version": "1.0.0",
+  "description": "Equipment Loan Management Kiosk",
+  "scripts": {
+    "setup": "python setup.py",
+    "start": "python kiosk/assetbot.py",
+    "dev": "python kiosk/assetbot.py",
+    "install-deps": "pip install -r requirements.txt",
+    "test": "python -m unittest discover",
+    "lint": "pylint kiosk"
+  },
+  "keywords": [
+    "kiosk",
+    "equipment",
+    "loan",
+    "management",
+    "flask",
+    "python"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

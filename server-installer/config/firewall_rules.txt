@@ -1,0 +1,15 @@
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    Anywhere                   # SSH
+[ 2] 80/tcp                     ALLOW IN    Anywhere                   # HTTP Apache
+[ 3] 443/tcp                    ALLOW IN    Anywhere                   # HTTPS Apache
+[ 4] 5000/tcp                   ALLOW IN    Anywhere                  
+[ 5] 8443/tcp                   ALLOW IN    Anywhere                  
+[ 6] 22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH
+[ 7] 80/tcp (v6)                ALLOW IN    Anywhere (v6)              # HTTP Apache
+[ 8] 443/tcp (v6)               ALLOW IN    Anywhere (v6)              # HTTPS Apache
+[ 9] 5000/tcp (v6)              ALLOW IN    Anywhere (v6)             
+[10] 8443/tcp (v6)              ALLOW IN    Anywhere (v6)             
+

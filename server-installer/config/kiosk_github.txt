@@ -1,0 +1,32 @@
+# Kiosk Application - GitHub Repository
+
+The kiosk application should be cloned from your GitHub repository during installation.
+
+## Installation Steps for Kiosk:
+
+1. Clone the repository:
+   ```bash
+   cd /var/www
+   git clone YOUR_GITHUB_REPO_URL kiosk
+   cd kiosk
+   ```
+
+2. Create Python virtual environment:
+   ```bash
+   python3 -m venv .kiosk
+   source .kiosk/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. Set up .env file (copy from .env.template and customize)
+
+4. Set permissions:
+   ```bash
+   sudo chown -R ubuntu:www-data /var/www/kiosk
+   sudo chmod -R 755 /var/www/kiosk
+   ```
+
+## Notes:
+- The installer script will include these steps
+- Make sure to update .env with new server IP/domain
+- Database configuration will need to match your new server
