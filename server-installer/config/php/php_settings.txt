@@ -1,6 +1,0 @@
-Configuration File (php.ini) Path => /etc/php/8.3/cli
-Loaded Configuration File => /etc/php/8.3/cli/php.ini
-max_execution_time => 0 => 0
-memory_limit => -1 => -1
-post_max_size => 8M => 8M
-upload_max_filesize => 2M => 2M

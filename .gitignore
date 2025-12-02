@@ -16,3 +16,5 @@ secure_backup/
 secrets_backup_*.tar.gz
 server-installer-original-backup-*.tar.gz
 server-installer.tar.gz
+server-installer/
+SETUP_WIZARD_GUIDE.md
