@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Equipment Kiosk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo" />
+            <div class="header-text">Equipment Management</div>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <div class="main-title">Equipment Self-Service Kiosk</div>
+            <div class="instructions">Welcome! Please sign in to manage equipment.</div>
+            <div class="button-container">
+                <a href="{{ url_for('auth_bp.sign_in') }}" class="primary-button">Sign In</a>
+                <a href="{{ url_for('assets_bp.equipment_info') }}" class="secondary-button">View Equipment Information</a>
+                <a href="{{ url_for('admin_bp.admin') }}" class="secondary-button">Add User</a>
+            </div>
+            <div class="barcode-area">
+                <img src="{{ url_for('static', filename='images/scan.png') }}" alt="Scan" class="scan-image">
+            </div>
+        </div>
+    </main>
+</body>
+</html>

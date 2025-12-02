@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Equipment Information - Equipment Kiosk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('assets_bp.checkout_page') }}" class="cart-button">
+                Cart <span class="cart-count">0</span>
+            </a>
+            <div id="logoutTimer" class="logout-timer">Session: 2:00</div>
+            <a href="{{ url_for('auth_bp.logout') }}" class="logout-button">Logout</a>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <div class="main-title">View Equipment Information</div>
+            <div class="instructions">Scan the equipment's barcode to view its information</div>
+            <div class="input-container">
+                <input type="text" id="barcodeInput" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0;" autocomplete="off" tabindex="-1">
+                <div class="barcode-area">
+                    <img src="{{ url_for('static', filename='images/tablet_clean.png') }}" alt="Equipment Information" class="scan-image">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+            <div id="assetInfo" style="display: none;" class="asset-info-container"></div>
+            <div id="feedback" class="feedback-message"></div>
+            <div class="button-container">
+                <a href="{{ url_for('assets_bp.dashboard') }}" class="secondary-button">Back to Dashboard</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const barcodeInput = document.getElementById('barcodeInput');
+        const feedback = document.getElementById('feedback');
+        const assetInfo = document.getElementById('assetInfo');
+        let timer = null;
+
+        // Input field is hidden for barcode scanners only
+        console.log('Asset info page loaded, setting up barcode input');
+        
+        // Keep input focused for barcode scanners
+        setInterval(() => {
+            if (document.activeElement !== barcodeInput) {
+                barcodeInput.focus();
+            }
+        }, 1000);
+
+        // Handle barcode input from scanners
+        barcodeInput.addEventListener('input', (e) => {
+            console.log('Input received:', e.target.value);
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const barcode = e.target.value.trim();
+                console.log('Processing barcode:', barcode, 'Length:', barcode.length);
+                if (barcode) {
+                    processBarcodeInput(barcode);
+                    e.target.value = ''; // Clear the input
+                }
+            }, 100); // Small delay to ensure we get the complete barcode
+        });        // Function to display asset information
+        function displayAssetInfo(data) {
+            assetInfo.style.display = 'block';
+            
+            // Determine if asset is checked out and by whom
+            const isCheckedOut = data.status_label?.status_meta === 'deployed' || data.assigned_to;
+            const assignedToInfo = data.assigned_to ? data.assigned_to.name : 'Unknown User';
+            
+            assetInfo.innerHTML = `
+                <div class="asset-card">
+                    <div class="asset-name">${data.name || (data.model?.name) || `Asset ${data.asset_tag}` || 'N/A'}</div>
+                    <div class="asset-tag">Inventory: ${data.inventory_number || data.asset_tag || 'N/A'}</div>
+                    <div class="asset-status">Status: ${data.status_label?.name || 'N/A'}</div>
+                    ${isCheckedOut ? 
+                        `<div class="asset-assigned" style="color: #ff6b6b; font-weight: bold;">
+                            ⚠️ CHECKED OUT to: ${assignedToInfo}
+                        </div>` : 
+                        `<div class="asset-available" style="color: #51cf66; font-weight: bold;">
+                            ✅ Available for checkout
+                        </div>`
+                    }
+                    ${data.model ? `<div class="asset-model">Model: ${data.model.name}</div>` : ''}
+                    ${data.serial ? `<div class="asset-serial">Serial: ${data.serial}</div>` : ''}
+                </div>
+            `;
+        }
+
+        // Function to handle the barcode input
+        function processBarcodeInput(barcode) {
+            feedback.textContent = 'Processing...';
+            feedback.className = 'feedback-message';
+            assetInfo.style.display = 'none';
+            
+            fetch("{{ url_for('assets_bp.process_asset_barcode') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ 
+                    barcode: barcode,
+                    action: 'info'
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    feedback.textContent = 'Equipment information retrieved successfully.';
+                    feedback.className = 'feedback-message success';
+                    displayAssetInfo(data.data);
+                } else {
+                    feedback.textContent = data.error;
+                    feedback.className = 'feedback-message error';
+                }
+                barcodeInput.focus(); // Refocus for next scan
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                feedback.textContent = 'Error retrieving equipment information.';
+                feedback.className = 'feedback-message error';
+                barcodeInput.focus(); // Refocus for next scan
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            // Focus removed for touch-friendly experience
+            updateCartCount();
+        });
+
+        // Update cart count from localStorage
+        function updateCartCount() {
+            const cartCount = localStorage.getItem('cartCount') || '0';
+            document.querySelector('.cart-count').textContent = cartCount;
+        }
+
+        // Update cart count when localStorage changes
+        window.addEventListener('storage', updateCartCount);
+
+        function clearCart() {
+            localStorage.removeItem('equipmentCart');
+            localStorage.removeItem('cartCount');
+            document.querySelector('.cart-count').textContent = '0';
+        }
+
+        // Clear cart when logging out
+        document.querySelector('.logout-button').addEventListener('click', clearCart);
+
+        // Also clear cart when session times out
+        function updateTimer() {
+            const minutes = Math.floor(sessionTimeout / 60);
+            const seconds = sessionTimeout % 60;
+            logoutTimer.textContent = `Session: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (sessionTimeout <= 0) {
+                clearCart(); // Clear cart before redirecting
+                window.location.href = "{{ url_for('auth_bp.logout') }}";
+            } else {
+                sessionTimeout--;
+            }
+        }
+    </script>
+</body>
+</html>

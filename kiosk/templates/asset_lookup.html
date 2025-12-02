@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Asset Lookup - Equipment Kiosk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <!-- Fixed Header -->
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('assets_bp.dashboard') }}" class="back-button">Back to Dashboard</a>
+            <div id="logoutTimer" class="logout-timer">Session: 2:00</div>
+            <a href="{{ url_for('auth_bp.logout') }}" class="logout-button">Logout</a>
+        </div>
+    </div>
+    
+    <main>
+        <div class="center-container">
+            <div class="main-title">Asset Lookup (VIP)</div>
+            <div class="instructions">Hello, {{ user_name }}! Search for assets by user name or asset number:</div>
+            
+            <div class="lookup-container" style="background-color: white; border-radius: 10px; padding: 2rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin: 2rem 0; max-width: 600px;">
+                <div class="lookup-form">
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label for="lookupType" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Lookup Type:</label>
+                        <select id="lookupType" style="width: 100%; padding: 0.75rem; border: 2px solid #ddd; border-radius: 5px; font-size: 1rem;">
+                            <option value="user_name">User Name (Fuzzy Search)</option>
+                            <option value="asset_number">Asset Number (RTC/PDP/Asset Tag)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label for="searchTerm" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Search Term:</label>
+                        <input type="text" id="searchTerm" placeholder="Enter user name or asset number..." style="width: 100%; padding: 0.75rem; border: 2px solid #ddd; border-radius: 5px; font-size: 1rem;">
+                    </div>
+                    
+                    <button onclick="performLookup()" class="primary-button" style="width: 100%; margin-bottom: 1rem;">
+                        Search
+                    </button>
+                    
+                    <button onclick="clearResults()" class="secondary-button" style="width: 100%;">
+                        Clear Results
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Results Container -->
+            <div id="resultsContainer" class="results-container" style="display: none; background-color: white; border-radius: 10px; padding: 2rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin: 2rem 0;">
+                <div id="resultsContent"></div>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="loading" style="display: none; text-align: center; padding: 2rem;">
+                <div style="font-size: 1.2rem; color: #666;">Searching...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Session timer (same as dashboard)
+        const logoutTimer = document.getElementById('logoutTimer');
+        let sessionTimeout = 120; // 2 minutes in seconds
+
+        function updateTimer() {
+            const minutes = Math.floor(sessionTimeout / 60);
+            const seconds = sessionTimeout % 60;
+            logoutTimer.textContent = "Session: " + minutes + ":" + seconds.toString().padStart(2, '0');
+            
+            if (sessionTimeout <= 0) {
+                window.location.href = "{{ url_for('auth_bp.logout') }}";
+            } else {
+                sessionTimeout--;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+
+        // Reset timer on any activity
+        document.addEventListener('mousemove', function() {
+            sessionTimeout = 120;
+        });
+        document.addEventListener('keypress', function() {
+            sessionTimeout = 120;
+        });
+
+        // Asset lookup functionality
+        function performLookup() {
+            var lookupType = document.getElementById('lookupType').value;
+            var searchTerm = document.getElementById('searchTerm').value.trim();
+            
+            if (!searchTerm) {
+                alert('Please enter a search term.');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('resultsContainer').style.display = 'none';
+            
+            fetch('/admin/asset-lookup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    lookup_type: lookupType,
+                    search_term: searchTerm
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                // Hide loading indicator
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+                if (data.success) {
+                    displayResults(data);
+                } else {
+                    displayError(data.error || 'An error occurred during lookup.');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                document.getElementById('loadingIndicator').style.display = 'none';
+                displayError('Network error occurred. Please try again.');
+            });
+        }
+        
+        function displayResults(data) {
+            var container = document.getElementById('resultsContainer');
+            var content = document.getElementById('resultsContent');
+            
+            var html = '<h2>Search Results</h2>';
+            html += '<p><strong>Search Type:</strong> ' + (data.lookup_type === 'user_name' ? 'User Name' : 'Asset Number') + '</p>';
+            html += '<p><strong>Search Term:</strong> ' + data.search_term + '</p>';
+            
+            if (data.lookup_type === 'user_name') {
+                // User lookup results
+                var result = data.result;
+                html += '<h3>User Information</h3>';
+                
+                // Show match quality if fuzzy search was used
+                if (result.match_score && result.match_score < 100) {
+                    html += '<div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 0.75rem; margin: 1rem 0;">';
+                    html += '<strong>Match Quality:</strong> ' + Math.round(result.match_score) + '% - Best match found for "' + data.search_term + '"';
+                    html += '</div>';
+                }
+                
+                html += '<p><strong>Name:</strong> ' + result.user.name + '</p>';
+                html += '<p><strong>Employee Number:</strong> ' + (result.user.employee_num || 'N/A') + '</p>';
+                html += '<p><strong>Email:</strong> ' + (result.user.email || 'N/A') + '</p>';
+                html += '<p><strong>VIP Status:</strong> ' + (result.user.vip ? 'Yes' : 'No') + '</p>';
+                html += '<p><strong>Total Assets:</strong> ' + result.total_assets + '</p>';
+                
+                // Show alternative matches if available
+                if (result.other_matches && result.other_matches.length > 0) {
+                    html += '<div style="background-color: #e3f2fd; border: 1px solid #90caf9; border-radius: 5px; padding: 0.75rem; margin: 1rem 0;">';
+                    html += '<strong>Other possible matches:</strong><ul style="margin: 0.5rem 0;">';
+                    result.other_matches.forEach(function(user) {
+                        html += '<li>' + user.name + ' (' + (user.employee_num || 'No employee #') + ')</li>';
+                    });
+                    html += '</ul><em>If this is not the correct person, try a more specific search.</em>';
+                    html += '</div>';
+                }
+                
+                if (result.assets && result.assets.length > 0) {
+                    html += '<h3>Assigned Assets</h3>';
+                    html += '<div class="asset-list">';
+                    
+                    result.assets.forEach(function(asset) {
+                        html += '<div class="asset-card" style="border: 1px solid #ddd; padding: 1rem; margin: 1rem 0; border-radius: 5px;">';
+                        html += '<div class="asset-name" style="font-weight: 600; font-size: 1.1em;">' + (asset.name || (asset.model && asset.model.name) || 'Asset ' + asset.asset_tag) + '</div>';
+                        html += '<div class="asset-tag"><strong>Inventory:</strong> ' + asset.inventory_display_number + '</div>';
+                        html += '<div class="asset-tag"><strong>Asset Tag:</strong> ' + asset.asset_tag + '</div>';
+                        html += '<div class="asset-status"><strong>Status:</strong> ' + (asset.status_label && asset.status_label.name || 'Unknown') + '</div>';
+                        if (asset.model) {
+                            html += '<div class="asset-model"><strong>Model:</strong> ' + asset.model.name + '</div>';
+                        }
+                        if (asset.last_checkout) {
+                            html += '<div class="asset-checkout-date"><strong>Checked out:</strong> ' + (asset.last_checkout.formatted || asset.last_checkout) + '</div>';
+                        }
+                        html += '</div>';
+                    });
+                    
+                    html += '</div>';
+                } else {
+                    html += '<p style="color: #666; font-style: italic;">No assets currently assigned to this user.</p>';
+                }
+                
+            } else {
+                // Asset lookup results
+                var asset = data.result;
+                html += '<h3>Asset Information</h3>';
+                html += '<div class="asset-card" style="border: 1px solid #ddd; padding: 1.5rem; margin: 1rem 0; border-radius: 5px;">';
+                html += '<div class="asset-name" style="font-weight: 600; font-size: 1.2em; margin-bottom: 1rem;">' + (asset.name || (asset.model && asset.model.name) || 'Asset ' + asset.asset_tag) + '</div>';
+                html += '<p><strong>Inventory Number:</strong> ' + asset.inventory_display_number + '</p>';
+                html += '<p><strong>Asset Tag:</strong> ' + asset.asset_tag + '</p>';
+                html += '<p><strong>Status:</strong> ' + (asset.status_label && asset.status_label.name || 'Unknown') + '</p>';
+                if (asset.model) {
+                    html += '<p><strong>Model:</strong> ' + asset.model.name + '</p>';
+                }
+                if (asset.assigned_to) {
+                    html += '<p><strong>Assigned To:</strong> ' + asset.assigned_to.name + ' (' + asset.assigned_to.username + ')</p>';
+                } else {
+                    html += '<p><strong>Assignment:</strong> Not assigned</p>';
+                }
+                if (asset.last_checkout) {
+                    html += '<p><strong>Last Checkout:</strong> ' + (asset.last_checkout.formatted || asset.last_checkout) + '</p>';
+                }
+                html += '</div>';
+            }
+            
+            content.innerHTML = html;
+            container.style.display = 'block';
+        }
+        
+        function displayError(errorMessage) {
+            var container = document.getElementById('resultsContainer');
+            var content = document.getElementById('resultsContent');
+            
+            content.innerHTML = '<h2>Search Results</h2><div style="color: #d32f2f; background-color: #ffebee; padding: 1rem; border-radius: 5px; border-left: 4px solid #d32f2f;"><strong>Error:</strong> ' + errorMessage + '</div>';
+            
+            container.style.display = 'block';
+        }
+        
+        function clearResults() {
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('searchTerm').value = '';
+        }
+        
+        // Allow Enter key to trigger search
+        document.getElementById('searchTerm').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performLookup();
+            }
+        });
+    </script>
+</body>
+</html>

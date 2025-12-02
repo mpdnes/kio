@@ -1,0 +1,143 @@
+<!-- templates/sign-in.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In - Equipment Kiosk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo" />
+            <div class="header-text">Equipment Management</div>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <div class="security-banner">
+                <strong>WARNING:</strong> This system is for authorized users only. All activities are monitored and recorded. 
+                Unauthorized access is prohibited and may be subject to criminal prosecution.
+            </div>
+            <div class="main-title">Sign In</div>
+            <div class="instructions">Please scan your ID to sign in</div>
+            <div class="input-container">
+                <input type="text" id="barcodeInput" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0;" autocomplete="off" tabindex="-1">
+                <div class="barcode-area">
+                    <img src="{{ url_for('static', filename='images/scan.png') }}" alt="Scan" class="scan-image">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+            <div class="alternative-signin" style="margin-top: 30px; text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 10px;">or enter your employee number</div>
+                <input type="text" id="employeeInput" placeholder="Employee Number" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 200px; text-align: center; display: none;" autocomplete="off">
+                <button id="toggleEmployeeInput" style="background: #f47142; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px;">Manual Entry</button>
+            </div>
+            <div id="feedback" class="feedback-message"></div>
+            <div class="button-container">
+                <a href="{{ url_for('main_bp.home') }}" class="secondary-button">Back to Home</a>
+            </div>
+        </div>
+    </main>
+
+    <script nonce="{{ csp_nonce() }}">
+        const barcodeInput = document.getElementById('barcodeInput');
+        const feedback = document.getElementById('feedback');
+        let timer = null;
+
+        // Input field is hidden for barcode scanners only
+        console.log('Sign-in page loaded, setting up barcode input');
+        
+
+        // Handle barcode input from scanners
+        barcodeInput.addEventListener('input', (e) => {
+            console.log('Input received:', e.target.value);
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const barcode = e.target.value.trim();
+                console.log('Processing barcode:', barcode, 'Length:', barcode.length);
+                if (barcode && barcode.length >= 4) { // Reduced minimum length for shorter barcodes
+                    processBarcode(barcode);
+                    e.target.value = '';
+                }
+            }, 100); // Reduced timeout for faster scanner response
+        });
+
+        // Also handle Enter key specifically for barcode scanners
+        barcodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(timer);
+                const barcode = e.target.value.trim();
+                if (barcode && barcode.length >= 4) { // Reduced minimum length for shorter barcodes
+                    processBarcode(barcode);
+                    e.target.value = '';
+                }
+            }
+        });
+
+        function processBarcode(barcode) {
+            feedback.textContent = 'Processing...';
+            feedback.className = 'feedback-message processing';
+            
+            fetch("{{ url_for('auth_bp.sign_in') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ barcode: barcode }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    feedback.textContent = data.message;
+                    feedback.className = 'feedback-message success';
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                } else {
+                    feedback.textContent = data.error;
+                    feedback.className = 'feedback-message error';
+                    barcodeInput.focus();
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                feedback.textContent = 'Error processing ID. Please try again.';
+                feedback.className = 'feedback-message error';
+                barcodeInput.focus();
+            });
+        }
+
+        // Employee number input functionality
+        const employeeInput = document.getElementById('employeeInput');
+        const toggleButton = document.getElementById('toggleEmployeeInput');
+        
+        toggleButton.addEventListener('click', () => {
+            if (employeeInput.style.display === 'none') {
+                employeeInput.style.display = 'inline-block';
+                toggleButton.textContent = 'Hide';
+                employeeInput.focus();
+            } else {
+                employeeInput.style.display = 'none';
+                toggleButton.textContent = 'Manual Entry';
+            }
+        });
+        
+        employeeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const employeeNum = e.target.value.trim();
+                if (employeeNum) {
+                    processBarcode(employeeNum);
+                    e.target.value = '';
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

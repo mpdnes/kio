@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Check Out - Equipment Kiosk</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .secondary-button.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('assets_bp.checkout_page') }}" class="cart-button">
+                Cart <span id="headerCartCount" class="cart-count">0</span>
+            </a>
+            <div id="logoutTimer" class="logout-timer">Session: 2:00</div>
+            <a href="{{ url_for('auth_bp.logout') }}" class="logout-button">Logout</a>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <div class="main-title">Check Out Equipment</div>
+            <div class="instructions">Scan equipment barcodes to add them to your cart</div>
+            
+            <div class="input-container">
+                <input type="text" id="barcodeInput" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0;" autocomplete="off" tabindex="-1">
+                <div class="barcode-area">
+                    <img src="{{ url_for('static', filename='images/tablet_clean.png') }}" alt="Equipment Checkout" class="scan-image">
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+            
+            <div class="alternative-entry" style="margin-top: 30px; text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 10px;">or enter iPad asset tag number</div>
+                <input type="text" id="assetTagInput" placeholder="iPad Asset Tag" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 200px; text-align: center; display: none;" autocomplete="off">
+                <button id="toggleAssetTagInput" style="background: #f47142; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px;">Manual Entry</button>
+            </div>
+            
+            <div id="feedback" class="feedback-message"></div>
+            
+            <div id="cartContainer" class="cart-container" style="display: none;">
+                <div class="cart-title">Equipment Cart</div>
+                <div id="cartItems" class="cart-items"></div>
+                <button id="checkoutAllButton" class="checkout-all-button" disabled>Check Out All Items</button>
+            </div>
+
+            <div class="button-container">
+                <a href="{{ url_for('assets_bp.dashboard') }}" class="secondary-button" id="backToDashboard">
+                    <span class="button-text">Back to Dashboard</span>
+                    <span class="loading-spinner" style="display: none;">Loading...</span>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const barcodeInput = document.getElementById('barcodeInput');
+        const feedback = document.getElementById('feedback');
+        const cartContainer = document.getElementById('cartContainer');
+        const cartItems = document.getElementById('cartItems');
+        const checkoutAllButton = document.getElementById('checkoutAllButton');
+        const logoutTimer = document.getElementById('logoutTimer');
+        const headerCartCount = document.getElementById('headerCartCount');
+        let timer = null;
+        let sessionTimeout = 120; // 2 minutes in seconds
+        let cart = new Set();
+
+        // Load cart from localStorage
+        function loadCart() {
+            const savedCart = localStorage.getItem('equipmentCart');
+            if (savedCart) {
+                cart = new Set(JSON.parse(savedCart));
+                updateCartDisplay();
+            }
+        }
+
+        // Save cart to localStorage
+        function saveCart() {
+            localStorage.setItem('equipmentCart', JSON.stringify([...cart]));
+            updateHeaderCartCount();
+        }
+
+        // Update cart count in header across all pages
+        function updateHeaderCartCount() {
+            const count = cart.size;
+            headerCartCount.textContent = count;
+            // Update localStorage for other pages
+            localStorage.setItem('cartCount', count);
+        }
+
+        // Session timer
+        function updateTimer() {
+            const minutes = Math.floor(sessionTimeout / 60);
+            const seconds = sessionTimeout % 60;
+            logoutTimer.textContent = `Session: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (sessionTimeout <= 0) {
+                clearCart(); // Clear cart before redirecting
+                window.location.href = "{{ url_for('auth_bp.logout') }}";
+            } else {
+                sessionTimeout--;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+
+        // Reset timer on any activity
+        document.addEventListener('mousemove', () => {
+            sessionTimeout = 120;
+        });
+        document.addEventListener('keypress', () => {
+            sessionTimeout = 120;
+        });
+
+        // Input field is hidden for barcode scanners only
+        console.log('Checkout page loaded, setting up barcode input');
+        
+        // Asset tag manual entry functionality
+        const assetTagInput = document.getElementById('assetTagInput');
+        const toggleAssetTagButton = document.getElementById('toggleAssetTagInput');
+        
+        toggleAssetTagButton.addEventListener('click', () => {
+            if (assetTagInput.style.display === 'none') {
+                assetTagInput.style.display = 'inline-block';
+                toggleAssetTagButton.textContent = 'Hide';
+                assetTagInput.focus();
+            } else {
+                assetTagInput.style.display = 'none';
+                toggleAssetTagButton.textContent = 'Manual Entry';
+            }
+        });
+        
+        assetTagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const assetTag = e.target.value.trim();
+                if (assetTag) {
+                    processBarcode(assetTag);
+                    e.target.value = '';
+                }
+            }
+        });
+        
+
+        function updateCartDisplay() {
+            cartItems.innerHTML = '';
+            cart.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'cart-item';
+                const displayNumber = item.inventory_number || item.barcode;
+                itemDiv.innerHTML = `
+                    <span>${item.name} (${displayNumber})</span>
+                    <span class="remove-item" onclick="removeFromCart('${item.barcode}')">&times;</span>
+                `;
+                cartItems.appendChild(itemDiv);
+            });
+            
+            cartContainer.style.display = cart.size > 0 ? 'block' : 'none';
+            checkoutAllButton.disabled = cart.size === 0;
+            updateHeaderCartCount();
+            saveCart();
+        }
+
+        function addToCart(item) {
+            cart.add(item);
+            updateCartDisplay();
+        }
+
+        function removeFromCart(barcode) {
+            cart = new Set([...cart].filter(item => item.barcode !== barcode));
+            updateCartDisplay();
+            feedback.textContent = 'Item removed from cart';
+            feedback.className = 'feedback-message';
+        }
+
+        async function checkoutAll() {
+            const items = [...cart];
+            if (items.length === 0) {
+                feedback.textContent = 'Cart is empty';
+                feedback.className = 'feedback-message error';
+                return;
+            }
+
+            feedback.textContent = `Checking out ${items.length} item(s)...`;
+            feedback.className = 'feedback-message processing';
+
+            let successCount = 0;
+            let failedItems = [];
+
+            for (const item of items) {
+                try {
+                    const response = await fetch("{{ url_for('assets_bp.checkout') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ asset_tag: item.barcode }),
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        successCount++;
+                    } else {
+                        failedItems.push({ barcode: item.barcode, error: data.error });
+                    }
+                } catch (error) {
+                    failedItems.push({ barcode: item.barcode, error: 'Network error' });
+                }
+            }
+
+            if (failedItems.length === 0) {
+                feedback.textContent = `Successfully checked out ${successCount} item(s)`;
+                feedback.className = 'feedback-message success';
+                cart.clear();
+                updateCartDisplay();
+            } else if (successCount > 0) {
+                feedback.textContent = `Checked out ${successCount} item(s), ${failedItems.length} failed`;
+                feedback.className = 'feedback-message error';
+                // Remove successful items from cart
+                failedItems.forEach(failed => {
+                    items.forEach(item => {
+                        if (item.barcode !== failed.barcode) {
+                            cart.delete(item);
+                        }
+                    });
+                });
+                updateCartDisplay();
+            } else {
+                feedback.textContent = `Checkout failed: ${failedItems[0].error}`;
+                feedback.className = 'feedback-message error';
+            }
+        }
+
+        // Handle barcode input from scanners
+        barcodeInput.addEventListener('input', (e) => {
+            console.log('Input received:', e.target.value);
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const barcode = e.target.value.trim();
+                console.log('Processing barcode:', barcode, 'Length:', barcode.length);
+                if (barcode) {
+                    processBarcode(barcode);
+                    e.target.value = '';
+                }
+            }, 100);
+        });
+
+        function processBarcode(barcode) {
+            feedback.textContent = 'Checking asset...';
+            feedback.className = 'feedback-message processing';
+            
+            fetch("{{ url_for('assets_bp.process_asset_barcode') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ 
+                    barcode: barcode,
+                    action: 'validate'
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToCart({ 
+                        barcode: barcode, 
+                        name: data.asset_name || `Asset ${barcode}`,
+                        inventory_number: data.inventory_number || barcode
+                    });
+                    feedback.textContent = 'Item added to cart';
+                    feedback.className = 'feedback-message success';
+                } else {
+                    // Check if transfer is available
+                    if (data.transfer_available) {
+                        showTransferOption(barcode, data);
+                    } else {
+                        feedback.textContent = data.error || 'An error occurred during checkout.';
+                        feedback.className = 'feedback-message error';
+                    }
+                }
+                barcodeInput.focus();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                feedback.textContent = 'Error processing barcode.';
+                feedback.className = 'feedback-message error';
+                barcodeInput.focus();
+            });
+        }
+
+        function showTransferOption(barcode, data) {
+            // Create a modal-like overlay for the transfer option
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            modal.innerHTML = `
+                <h3 style="color: #333; margin-bottom: 20px;">Asset Already Checked Out</h3>
+                <p style="color: #666; margin-bottom: 10px;"><strong>${data.asset_name}</strong></p>
+                <p style="color: #666; margin-bottom: 20px;">This asset is currently checked out to <strong>${data.current_user}</strong>.</p>
+                <p style="color: #666; margin-bottom: 30px;">Would you like to transfer it to yourself instead?</p>
+                <div>
+                    <button id="transferYes" style="
+                        background-color: #007bff;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        margin: 0 10px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">Yes, Transfer to Me</button>
+                    <button id="transferNo" style="
+                        background-color: #6c757d;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        margin: 0 10px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">Cancel</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Handle transfer confirmation
+            document.getElementById('transferYes').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                performTransfer(barcode, data.current_user_id);
+            });
+            
+            // Handle cancellation
+            document.getElementById('transferNo').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                feedback.textContent = data.error;
+                feedback.className = 'feedback-message error';
+            });
+            
+            // Close modal when clicking overlay
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    feedback.textContent = data.error;
+                    feedback.className = 'feedback-message error';
+                }
+            });
+        }
+
+        function performTransfer(barcode, fromUserId) {
+            feedback.textContent = 'Transferring asset...';
+            feedback.className = 'feedback-message processing';
+            
+            fetch("{{ url_for('assets_bp.transfer') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    barcode: barcode,
+                    from_user_id: fromUserId
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    feedback.textContent = data.message || 'Asset transferred successfully!';
+                    feedback.className = 'feedback-message success';
+                    // Optionally add to cart or redirect to dashboard
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('assets_bp.dashboard') }}";
+                    }, 2000);
+                } else {
+                    feedback.textContent = data.error || 'Transfer failed.';
+                    feedback.className = 'feedback-message error';
+                }
+            })
+            .catch(error => {
+                console.error('Transfer error:', error);
+                feedback.textContent = 'Error processing transfer.';
+                feedback.className = 'feedback-message error';
+            });
+        }
+
+        checkoutAllButton.addEventListener('click', checkoutAll);
+
+        // Initialize cart on page load
+        window.addEventListener('load', () => {
+            loadCart();
+            // Focus removed for touch-friendly experience
+        });
+
+        function clearCart() {
+            cart.clear();
+            localStorage.removeItem('equipmentCart');
+            localStorage.removeItem('cartCount');
+            updateCartDisplay();
+        }
+
+        // Clear cart when logging out
+        document.querySelector('.logout-button').addEventListener('click', clearCart);
+
+        // Add loading indicator to Back to Dashboard button
+        document.getElementById('backToDashboard').addEventListener('click', function(e) {
+            const button = this;
+            const buttonText = button.querySelector('.button-text');
+            const loadingSpinner = button.querySelector('.loading-spinner');
+            
+            // Show loading state
+            buttonText.style.display = 'none';
+            loadingSpinner.style.display = 'inline';
+            button.classList.add('loading');
+            
+            // Don't prevent the default navigation
+            // The loading state will show while the page loads
+        });
+    </script>
+</body>
+</html>

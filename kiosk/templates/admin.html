@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Equipment Kiosk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <!-- Admin Access Step -->
+            <div id="admin-access-step" class="admin-step">
+                <div class="main-title">Add User Access</div>
+                <div class="instructions">Please scan your VIP ID to access user creation</div>
+                <div class="input-container">
+                    <input type="text" id="adminBarcodeInput" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0;" autocomplete="off" tabindex="-1">
+                    <div class="barcode-area">
+                        <img src="{{ url_for('static', filename='images/scan.png') }}" alt="Scan" class="scan-image">
+                        <div class="scan-line"></div>
+                    </div>
+                </div>
+                <div id="access-feedback" class="feedback-message"></div>
+                <div class="button-container">
+                    <a href="{{ url_for('main_bp.home') }}" class="secondary-button">Back to Home</a>
+                </div>
+            </div>
+
+            <!-- User Creation Form Step -->
+            <div id="user-creation-step" class="admin-step" style="display: none;">
+                <div class="main-title">Create New User</div>
+                <div class="instructions">Admin: <span id="admin-name"></span></div>
+                
+                <form id="user-creation-form" class="admin-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name *</label>
+                            <input type="text" id="firstName" name="first_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name *</label>
+                            <input type="text" id="lastName" name="last_name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username">Username *</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="employeeId">Employee ID *</label>
+                            <input type="text" id="employeeId" name="employee_num" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select id="department" name="department_id">
+                                <option value="">Select Department (Optional)</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}">{{ dept.name }}{% if dept.manager %} ({{ dept.manager }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="isVip" name="is_vip">
+                                <span class="checkmark"></span>
+                                VIP User
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-note">
+                        * A secure password will be automatically generated for this user
+                    </div>
+                    
+                    <div id="form-feedback" class="feedback-message"></div>
+                    
+                    <div class="button-container">
+                        <button type="submit" class="primary-button">Create User</button>
+                        <button type="button" id="back-to-scan" class="secondary-button">Back to Scan</button>
+                        <a href="{{ url_for('main_bp.home') }}" class="secondary-button">Exit Admin</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script nonce="{{ csp_nonce() }}">
+        // State management
+        let currentStep = 'access';
+        
+        // DOM elements
+        const adminAccessStep = document.getElementById('admin-access-step');
+        const userCreationStep = document.getElementById('user-creation-step');
+        const adminBarcodeInput = document.getElementById('adminBarcodeInput');
+        const accessFeedback = document.getElementById('access-feedback');
+        const adminNameSpan = document.getElementById('admin-name');
+        const userForm = document.getElementById('user-creation-form');
+        const formFeedback = document.getElementById('form-feedback');
+        const backToScanBtn = document.getElementById('back-to-scan');
+        
+        let barcodeTimer = null;
+
+        // Initialize
+        console.log('Admin page loaded, setting up barcode input');
+        
+        // Keep barcode input focused for scanners
+        setInterval(() => {
+            if (currentStep === 'access' && document.activeElement !== adminBarcodeInput) {
+                adminBarcodeInput.focus();
+            }
+        }, 1000);
+
+        // Handle admin barcode input from scanners
+        adminBarcodeInput.addEventListener('input', (e) => {
+            console.log('Admin barcode input received:', e.target.value);
+            clearTimeout(barcodeTimer);
+            barcodeTimer = setTimeout(() => {
+                const barcode = e.target.value.trim();
+                console.log('Processing admin barcode:', barcode, 'Length:', barcode.length);
+                if (barcode && barcode.length >= 4) {
+                    processAdminBarcode(barcode);
+                    e.target.value = '';
+                }
+            }, 100);
+        });
+
+        // Handle Enter key for barcode scanners  
+        adminBarcodeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent form submission on Enter
+                clearTimeout(barcodeTimer);
+                const barcode = e.target.value.trim();
+                if (barcode && barcode.length >= 4) {
+                    processAdminBarcode(barcode);
+                    e.target.value = '';
+                }
+            }
+        });
+
+        function processAdminBarcode(barcode) {
+            accessFeedback.textContent = 'Checking access permissions...';
+            accessFeedback.className = 'feedback-message processing';
+            
+            fetch("{{ url_for('admin_bp.check_vip') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ barcode: barcode }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.is_vip) {
+                    accessFeedback.textContent = data.message;
+                    accessFeedback.className = 'feedback-message success';
+                    adminNameSpan.textContent = data.admin_name;
+                    
+                    // Switch to user creation form after a short delay
+                    setTimeout(() => {
+                        showUserCreationForm();
+                    }, 1500);
+                } else {
+                    accessFeedback.textContent = data.message || data.error || 'Access denied';
+                    accessFeedback.className = 'feedback-message error';
+                    adminBarcodeInput.focus();
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                accessFeedback.textContent = 'Error checking access permissions. Please try again.';
+                accessFeedback.className = 'feedback-message error';
+                adminBarcodeInput.focus();
+            });
+        }
+
+        function showUserCreationForm() {
+            currentStep = 'creation';
+            adminAccessStep.style.display = 'none';
+            userCreationStep.style.display = 'block';
+            document.getElementById('firstName').focus();
+        }
+
+        function showAdminAccess() {
+            currentStep = 'access';
+            userCreationStep.style.display = 'none';
+            adminAccessStep.style.display = 'block';
+            accessFeedback.textContent = '';
+            accessFeedback.className = 'feedback-message';
+            adminBarcodeInput.focus();
+        }
+
+        // Handle form submission
+        userForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            formFeedback.textContent = 'Creating user...';
+            formFeedback.className = 'feedback-message processing';
+            
+            const formData = new FormData(userForm);
+            const userData = {
+                first_name: formData.get('first_name').trim(),
+                last_name: formData.get('last_name').trim(),
+                username: formData.get('username').trim(),
+                email: formData.get('email').trim(),
+                employee_num: formData.get('employee_num').trim(),
+                department_id: formData.get('department_id') || null,
+                is_vip: formData.get('is_vip') === 'on'
+            };
+            
+            fetch("{{ url_for('admin_bp.create_new_user') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(userData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    formFeedback.textContent = data.message;
+                    formFeedback.className = 'feedback-message success';
+                    
+                    // Reset form after success
+                    setTimeout(() => {
+                        userForm.reset();
+                        formFeedback.textContent = '';
+                        formFeedback.className = 'feedback-message';
+                        document.getElementById('firstName').focus();
+                    }, 3000);
+                } else {
+                    formFeedback.textContent = data.error;
+                    formFeedback.className = 'feedback-message error';
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                formFeedback.textContent = 'Error creating user. Please try again.';
+                formFeedback.className = 'feedback-message error';
+            });
+        });
+
+        // Back to scan button - should go to main scan page, not admin access
+        backToScanBtn.addEventListener('click', () => {
+            // Redirect to main scanning page instead of staying in admin
+            window.location.href = "{{ url_for('main_bp.home') }}";
+        });
+
+    </script>
+</body>
+</html>

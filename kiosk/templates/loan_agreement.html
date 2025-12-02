@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Equipment Loan Agreement - Equipment Kiosk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .form-header {
+            background: linear-gradient(135deg, #f76902 0%, #d85802 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .form-content {
+            padding: 2rem;
+        }
+        .form-step {
+            margin-bottom: 2rem;
+        }
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .step-indicator h3 {
+            margin: 0;
+            color: #f76902;
+        }
+        .agreement-text {
+            background-color: #f8f9fa;
+            border-left: 4px solid #f76902;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-size: 0.95em;
+            line-height: 1.7;
+        }
+        .agreement-text p {
+            margin-bottom: 1.2rem;
+            text-align: justify;
+        }
+        .agreement-text p:last-child {
+            margin-bottom: 0;
+        }
+        .form-section {
+            margin: 2.5rem 0;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 2rem;
+        }
+        .form-section:last-of-type {
+            border-bottom: none;
+        }
+        .form-section h3 {
+            color: #f76902;
+            margin-bottom: 1.5rem;
+            font-size: 1.3em;
+            font-weight: 700;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f76902;
+            display: inline-block;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .form-row .form-group {
+            flex: 1;
+            min-width: 250px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #f76902;
+        }
+        .equipment-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .equipment-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        .equipment-item .details {
+            flex: 1;
+        }
+        .equipment-item .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .equipment-validation {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .validation-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .validation-valid {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .validation-invalid {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .validation-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .signature-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .signature-pad {
+            width: 100%;
+            height: 250px;
+            border: 3px solid #f76902;
+            border-radius: 8px;
+            background-color: white;
+            cursor: crosshair;
+            touch-action: none;
+            display: block;
+        }
+        .signature-controls {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .signature-controls button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        .signature-controls button:hover {
+            background-color: #f8f9fa;
+        }
+        .submit-section {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #eee;
+        }
+        .required {
+            color: #d32f2f;
+        }
+        .back-to-step1 {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 1rem;
+        }
+        /* Disable on-screen keyboard for Linux touchscreen */
+        input[type="text"], input[type="email"], input[type="tel"], input[type="date"], textarea {
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            inputmode: none;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="tel"]:focus, input[type="date"]:focus, textarea:focus {
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Fixed Header -->
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('assets_bp.dashboard') }}" class="back-button">Back to Dashboard</a>
+            <div id="logoutTimer" class="logout-timer">Session: 2:00</div>
+            <a href="{{ url_for('auth_bp.logout') }}" class="logout-button">Logout</a>
+        </div>
+    </div>
+    
+    <main>
+        <div class="center-container">
+            <div class="form-container">
+                <div class="form-header">
+                    <h1>Equipment Loan Agreement</h1>
+                    <p>Equipment Management Team</p>
+                </div>
+                
+                <div class="form-content">
+                    <!-- Step 1: Student Selection -->
+                    <div id="step1_student_selection" class="form-step">
+                        <div class="step-indicator">
+                            <h3>Step 1: Select Student</h3>
+                            <p>First, scan the student's ID or enter their employee number</p>
+                        </div>
+                        <div class="form-section">
+                            <div class="form-group">
+                                <label for="student_barcode_input">Student ID / Employee Number <span class="required">*</span></label>
+                                <input type="text" id="student_barcode_input" name="student_barcode_input" 
+                                       placeholder="Scan student ID barcode or enter employee number manually" 
+                                       style="font-size: 1.1em; padding: 1rem;"
+                                       autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"
+                                       inputmode="none">
+                                <div style="font-size: 0.8em; color: #666; margin-top: 0.25rem;">
+                                    💡 Scan the student's ID or type their employee number (e.g., 7810909990)
+                                </div>
+                                <div class="equipment-validation" id="student_validation" style="display: none;">
+                                    <div class="validation-status" id="student_status"></div>
+                                    <div class="validation-details" id="student_details"></div>
+                                </div>
+                            </div>
+                            <!-- Student Creation Form (initially hidden) -->
+                            <div id="student_creation_form" style="display: none; margin-top: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                                <h4 style="color: #f76902; margin-bottom: 1rem;">Create New Student</h4>
+                                <p style="margin-bottom: 1rem;">This student doesn't exist in the database. Please enter their information to create them:</p>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="create_first_name">First Name <span class="required">*</span></label>
+                                        <input type="text" id="create_first_name" placeholder="First name" style="padding: 0.75rem;" 
+                                               readonly onfocus="this.removeAttribute('readonly');">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="create_last_name">Last Name <span class="required">*</span></label>
+                                        <input type="text" id="create_last_name" placeholder="Last name" style="padding: 0.75rem;"
+                                               readonly onfocus="this.removeAttribute('readonly');">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="create_email">Email <span class="required">*</span></label>
+                                    <input type="email" id="create_email" placeholder="user@organization.edu" style="padding: 0.75rem;"
+                                           readonly onfocus="this.removeAttribute('readonly');">
+                                </div>
+                                <div style="text-align: center; margin-top: 1rem;">
+                                    <button type="button" id="cancel_create_student" class="back-to-step1" style="margin-right: 1rem;">Cancel</button>
+                                    <button type="button" id="create_student_btn" class="primary-button" style="padding: 0.75rem 1.5rem;">
+                                        Create Student
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style="text-align: center; margin-top: 2rem;">
+                                <button type="button" id="continue_to_form" class="primary-button" disabled 
+                                        style="padding: 1rem 2rem; font-size: 1.1em;">
+                                    Continue to Loan Agreement Form
+                                </button>
+                                <button type="button" id="show_create_form" class="back-to-step1" disabled
+                                        style="margin-left: 1rem; padding: 1rem 1.5rem;">
+                                    Create New Student
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Full Form (initially hidden) -->
+                    <form id="loanAgreementForm" style="display: none;">
+                        <div class="step-indicator">
+                            <h3>Step 2: Complete Loan Agreement</h3>
+                            <p>Fill out the loan agreement details and scan equipment</p>
+                            <button type="button" class="back-to-step1">← Change Student</button>
+                        </div>
+
+                        <!-- Borrower Information Section -->
+                        <div class="form-section">
+                            <h3>Borrower Information</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="borrower_name">Borrower Name <span class="required">*</span></label>
+                                    <input type="text" id="borrower_name" name="borrower_name" required readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="rit_email">Email <span class="required">*</span></label>
+                                    <input type="email" id="rit_email" name="rit_email" required placeholder="user@organization.edu" readonly>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="campus_location">Location (Campus Address)</label>
+                                    <input type="text" id="campus_location" name="campus_location" placeholder="Building/Room number" 
+                                           readonly onfocus="this.removeAttribute('readonly');">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dates of Use Section -->
+                        <div class="form-section">
+                            <h3>Dates of Use</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="start_date">Start Date <span class="required">*</span></label>
+                                    <input type="date" id="start_date" name="start_date" required 
+                                           readonly onfocus="this.removeAttribute('readonly');">
+                                </div>
+                                <div class="form-group">
+                                    <label for="end_date">End Date <span class="required">*</span></label>
+                                    <input type="date" id="end_date" name="end_date" required 
+                                           readonly onfocus="this.removeAttribute('readonly');">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Equipment Information Section -->
+                        <div class="form-section">
+                            <h3>Equipment Information</h3>
+                            <div class="form-group">
+                                <label for="equipment_scanner">Scan Equipment Barcodes <span class="required">*</span></label>
+                                <input type="text" id="equipment_scanner" placeholder="Scan equipment barcode here (will auto-detect type)" 
+                                       style="font-size: 1.1em; padding: 1rem;" autocomplete="off" 
+                                       readonly onfocus="this.removeAttribute('readonly');" inputmode="none">
+                                <div style="font-size: 0.8em; color: #666; margin-top: 0.25rem;">
+                                    💡 Scan each piece of equipment - iPads, microphones, etc. will be auto-detected
+                                </div>
+                                <div class="equipment-validation" id="equipment_validation" style="display: none;">
+                                    <div class="validation-status" id="equipment_status"></div>
+                                    <div class="validation-details" id="equipment_details"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Equipment List -->
+                            <div class="equipment-list">
+                                <h4>Scanned Equipment:</h4>
+                                <div id="equipment_items">
+                                    <p style="color: #666; font-style: italic;">No equipment scanned yet. Use the scanner above to add equipment.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Agreement Terms -->
+                        <div class="form-section">
+                            <h3>Agreement Terms</h3>
+                            <div class="agreement-text">
+                                <p style="font-weight: 600; font-size: 1.05em; color: #d85802;"><strong>This is an Equipment Loan Agreement between the Organization and the Borrower.</strong></p>
+                                
+                                <p><strong>Equipment Condition & Responsibility:</strong><br>
+                                The borrower acknowledges that equipment listed has been received in good condition and they understand that the equipment is property of the Organization. While any equipment is in the borrower's possession, the Borrower is responsible for damage, theft, or loss caused by their negligence. Further, the borrower is responsible for returning the item(s) received in good working order.</p>
+                                
+                                <p><strong>Software & Content Restrictions:</strong><br>
+                                Borrower will not add or modify the content of the equipment. Any software installed on equipment is for use on this equipment only and must not be copied or installed elsewhere. The equipment is the property of the Organization and no other programs or files are to be installed or downloaded on these machines.</p>
+                                
+                                <p><strong>Authorized Use:</strong><br>
+                                This equipment is to be used exclusively for authorized purposes as defined by the Organization. Borrower is responsible for cleaning and general maintenance of the equipment during the loan period.</p>
+                                
+                                <p><strong>Equipment Return:</strong><br>
+                                At the end of the loan period, borrower will return all equipment to the designated return location as specified by the Organization.</p>
+                                
+                                <p><strong>Issue Reporting:</strong><br>
+                                Borrower will notify the Equipment Management Team immediately if there are any issues with performance or function of the equipment.</p>
+                            </div>
+                        </div>
+
+                        <!-- Signature Section -->
+                        <div class="form-section">
+                            <h3>Signature & Confirmation</h3>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <div class="signature-section">
+                                        <label>Student Signature <span class="required">*</span></label>
+                                        <canvas class="signature-pad" id="student_signature" width="600" height="250"></canvas>
+                                        <div class="signature-controls">
+                                            <button type="button" onclick="clearSignature('student_signature')">Clear</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <div style="background-color: #f8f9fa; border-radius: 8px; padding: 1.5rem; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                                        <label style="margin-bottom: 1rem; font-weight: 600;">Confirmed By:</label>
+                                        <div id="rtc_rep_name" style="font-size: 1.1em; font-weight: 600; color: #f76902; margin-bottom: 0.5rem;">{{ user_name }}</div>
+                                        <div style="font-size: 0.9em; color: #666;">Equipment Coordinator</div>
+                                        <div style="font-size: 0.8em; color: #666; margin-top: 0.5rem;">Logged in and processing this agreement</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="signature_date">Date <span class="required">*</span></label>
+                                <input type="date" id="signature_date" name="signature_date" required 
+                                       readonly onfocus="this.removeAttribute('readonly');">
+                            </div>
+                        </div>
+
+                        <!-- Submit Section -->
+                        <div class="submit-section">
+                            <button type="submit" class="primary-button" style="padding: 1rem 2rem; font-size: 1.1em;">
+                                Submit Loan Agreement
+                            </button>
+                            <p style="margin-top: 1rem; color: #666; font-size: 0.9em;">
+                                All required fields must be completed before submission
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global variables
+        let selectedStudent = null;
+        let scannedEquipment = [];
+        let studentValidationTimeout;
+        let equipmentValidationTimeout;
+
+        // Session timer
+        const logoutTimer = document.getElementById('logoutTimer');
+        let sessionTimeout = 120;
+
+        function updateTimer() {
+            const minutes = Math.floor(sessionTimeout / 60);
+            const seconds = sessionTimeout % 60;
+            logoutTimer.textContent = "Session: " + minutes + ":" + seconds.toString().padStart(2, '0');
+            
+            if (sessionTimeout <= 0) {
+                window.location.href = "{{ url_for('auth_bp.logout') }}";
+            } else {
+                sessionTimeout--;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+        document.addEventListener('mousemove', function() { sessionTimeout = 120; });
+        document.addEventListener('keypress', function() { sessionTimeout = 120; });
+
+        // Set today's date as default for signature date
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('signature_date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('start_date').value = new Date().toISOString().split('T')[0];
+            
+            // Set end date to 4 months from today
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 4);
+            document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+        });
+
+        // Step 1: Student Selection
+        document.getElementById('student_barcode_input').addEventListener('input', function() {
+            clearTimeout(studentValidationTimeout);
+            const value = this.value.trim();
+            if (value) {
+                studentValidationTimeout = setTimeout(function() {
+                    validateStudent(value);
+                }, 500);
+            } else {
+                document.getElementById('student_validation').style.display = 'none';
+                document.getElementById('continue_to_form').disabled = true;
+                selectedStudent = null;
+            }
+        });
+
+        // Handle barcode scanner enter key for student selection
+        document.getElementById('student_barcode_input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                if (value) {
+                    validateStudent(value);
+                }
+            }
+        });
+
+        function validateStudent(employeeNumber) {
+            const validationDiv = document.getElementById('student_validation');
+            const statusDiv = document.getElementById('student_status');
+            const detailsDiv = document.getElementById('student_details');
+
+            // Show loading state
+            validationDiv.style.display = 'flex';
+            statusDiv.textContent = 'Looking up student...';
+            statusDiv.className = 'validation-status validation-warning';
+            detailsDiv.textContent = '';
+
+            fetch('/admin/lookup-student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    employee_number: employeeNumber
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success && data.student) {
+                    selectedStudent = data.student;
+                    statusDiv.textContent = data.created ? 'Student Created' : 'Student Found';
+                    statusDiv.className = 'validation-status validation-valid';
+                    detailsDiv.textContent = data.student.name + ' (' + data.student.email + ')';
+                    document.getElementById('continue_to_form').disabled = false;
+                    document.getElementById('show_create_form').disabled = true;
+                    document.getElementById('student_creation_form').style.display = 'none';
+                } else if (data.student_not_found && data.can_create) {
+                    selectedStudent = null;
+                    statusDiv.textContent = 'Student Not Found';
+                    statusDiv.className = 'validation-status validation-warning';
+                    detailsDiv.textContent = data.error + ' You can create them using the button below.';
+                    document.getElementById('continue_to_form').disabled = true;
+                    document.getElementById('show_create_form').disabled = false;
+                    // Store the employee number for student creation
+                    document.getElementById('show_create_form').dataset.employeeNumber = employeeNumber;
+                } else {
+                    selectedStudent = null;
+                    statusDiv.textContent = 'Student Not Found';
+                    statusDiv.className = 'validation-status validation-invalid';
+                    detailsDiv.textContent = data.error || 'Student not found in database';
+                    document.getElementById('continue_to_form').disabled = true;
+                    document.getElementById('show_create_form').disabled = true;
+                }
+            })
+            .catch(function(error) {
+                selectedStudent = null;
+                statusDiv.textContent = 'Error';
+                statusDiv.className = 'validation-status validation-invalid';
+                detailsDiv.textContent = 'Lookup failed';
+                document.getElementById('continue_to_form').disabled = true;
+                document.getElementById('show_create_form').disabled = true;
+            });
+        }
+
+        // Show student creation form
+        document.getElementById('show_create_form').addEventListener('click', function() {
+            document.getElementById('student_creation_form').style.display = 'block';
+            document.getElementById('create_first_name').focus();
+        });
+
+        // Cancel student creation
+        document.getElementById('cancel_create_student').addEventListener('click', function() {
+            document.getElementById('student_creation_form').style.display = 'none';
+            document.getElementById('create_first_name').value = '';
+            document.getElementById('create_last_name').value = '';
+            document.getElementById('create_email').value = '';
+        });
+
+        // Create student
+        document.getElementById('create_student_btn').addEventListener('click', function() {
+            const firstName = document.getElementById('create_first_name').value.trim();
+            const lastName = document.getElementById('create_last_name').value.trim();
+            const email = document.getElementById('create_email').value.trim();
+            const employeeNumber = document.getElementById('show_create_form').dataset.employeeNumber;
+
+            if (!firstName || !lastName || !email) {
+                alert('Please fill in all required fields.');
+                return;
+            }
+
+            // Validate email format
+            if (!email.includes('@') || !email.includes('.')) {
+                alert('Please enter a valid email address.');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('create_student_btn').textContent = 'Creating...';
+            document.getElementById('create_student_btn').disabled = true;
+
+            fetch('/admin/create-student', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    employee_number: employeeNumber
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success && data.student) {
+                    selectedStudent = data.student;
+                    
+                    // Update UI to show success
+                    const statusDiv = document.getElementById('student_status');
+                    const detailsDiv = document.getElementById('student_details');
+                    statusDiv.textContent = 'Student Created';
+                    statusDiv.className = 'validation-status validation-valid';
+                    
+                    let detailsText = data.student.name + ' (' + data.student.email + ') - Created successfully!';
+                    detailsDiv.textContent = detailsText;
+                    
+                    // Hide creation form and enable continue button
+                    document.getElementById('student_creation_form').style.display = 'none';
+                    document.getElementById('continue_to_form').disabled = false;
+                    document.getElementById('show_create_form').disabled = true;
+                } else {
+                    alert('Error creating student: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(function(error) {
+                alert('Network error occurred while creating student.');
+            })
+            .finally(function() {
+                document.getElementById('create_student_btn').textContent = 'Create Student';
+                document.getElementById('create_student_btn').disabled = false;
+            });
+        });
+
+        // Continue to form button
+        document.getElementById('continue_to_form').addEventListener('click', function() {
+            if (selectedStudent) {
+                // Hide step 1, show step 2
+                document.getElementById('step1_student_selection').style.display = 'none';
+                document.getElementById('loanAgreementForm').style.display = 'block';
+
+                // Pre-fill borrower information
+                document.getElementById('borrower_name').value = selectedStudent.name;
+                document.getElementById('rit_email').value = selectedStudent.email;
+                
+                // Focus on campus location for address entry
+                document.getElementById('campus_location').focus();
+            }
+        });
+
+        // Back to step 1 button
+        document.querySelector('.back-to-step1').addEventListener('click', function() {
+            document.getElementById('step1_student_selection').style.display = 'block';
+            document.getElementById('loanAgreementForm').style.display = 'none';
+            document.getElementById('student_barcode_input').focus();
+        });
+
+        // Equipment scanning
+        document.getElementById('equipment_scanner').addEventListener('input', function() {
+            clearTimeout(equipmentValidationTimeout);
+            const value = this.value.trim();
+            if (value) {
+                equipmentValidationTimeout = setTimeout(function() {
+                    validateAndAddEquipment(value);
+                }, 500);
+            } else {
+                document.getElementById('equipment_validation').style.display = 'none';
+            }
+        });
+
+        // Handle barcode scanner enter key for equipment
+        document.getElementById('equipment_scanner').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.value.trim();
+                if (value) {
+                    validateAndAddEquipment(value);
+                }
+            }
+        });
+
+        function validateAndAddEquipment(equipmentNumber) {
+            const validationDiv = document.getElementById('equipment_validation');
+            const statusDiv = document.getElementById('equipment_status');
+            const detailsDiv = document.getElementById('equipment_details');
+
+            // Show loading state
+            validationDiv.style.display = 'flex';
+            statusDiv.textContent = 'Validating equipment...';
+            statusDiv.className = 'validation-status validation-warning';
+            detailsDiv.textContent = '';
+
+            fetch('/admin/validate-equipment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    equipment_number: equipmentNumber
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success && data.valid) {
+                    const equipment = data.asset_info;
+                    
+                    // Check if already added
+                    if (scannedEquipment.some(eq => eq.asset_tag === equipment.asset_tag)) {
+                        statusDiv.textContent = 'Already Added';
+                        statusDiv.className = 'validation-status validation-warning';
+                        detailsDiv.textContent = 'This equipment is already in the list';
+                        return;
+                    }
+
+                    // Add to scanned equipment list
+                    scannedEquipment.push(equipment);
+                    addEquipmentToList(equipment);
+                    
+                    statusDiv.textContent = 'Added';
+                    statusDiv.className = 'validation-status validation-valid';
+                    detailsDiv.textContent = equipment.name + ' added to loan agreement';
+                    
+                    // Clear the input for next scan
+                    document.getElementById('equipment_scanner').value = '';
+                    setTimeout(function() {
+                        validationDiv.style.display = 'none';
+                    }, 2000);
+                } else {
+                    statusDiv.textContent = 'Invalid';
+                    statusDiv.className = 'validation-status validation-invalid';
+                    detailsDiv.textContent = data.error || 'Equipment not found in database';
+                }
+            })
+            .catch(function(error) {
+                statusDiv.textContent = 'Error';
+                statusDiv.className = 'validation-status validation-invalid';
+                detailsDiv.textContent = 'Validation failed';
+            });
+        }
+
+        function addEquipmentToList(equipment) {
+            const itemsDiv = document.getElementById('equipment_items');
+            
+            // Remove the "no equipment" message if it's the first item
+            if (scannedEquipment.length === 1) {
+                itemsDiv.innerHTML = '';
+            }
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'equipment-item';
+            itemDiv.innerHTML = `
+                <div class="details">
+                    <strong>${equipment.name}</strong><br>
+                    <small>Asset Tag: ${equipment.asset_tag} | Inventory: ${equipment.inventory_number}</small>
+                    ${equipment.assigned_to ? `<br><small style="color: #856404;">⚠️ Currently assigned to: ${equipment.assigned_to}</small>` : ''}
+                </div>
+                <button type="button" class="remove-btn" onclick="removeEquipment('${equipment.asset_tag}')">Remove</button>
+            `;
+            
+            itemsDiv.appendChild(itemDiv);
+        }
+
+        function removeEquipment(assetTag) {
+            scannedEquipment = scannedEquipment.filter(eq => eq.asset_tag !== assetTag);
+            updateEquipmentList();
+        }
+
+        function updateEquipmentList() {
+            const itemsDiv = document.getElementById('equipment_items');
+            itemsDiv.innerHTML = '';
+            
+            if (scannedEquipment.length === 0) {
+                itemsDiv.innerHTML = '<p style="color: #666; font-style: italic;">No equipment scanned yet. Use the scanner above to add equipment.</p>';
+            } else {
+                scannedEquipment.forEach(equipment => {
+                    addEquipmentToList(equipment);
+                });
+            }
+        }
+
+        // Signature functionality
+        const signatures = {};
+
+        function initSignaturePad(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            let drawing = false;
+            
+            signatures[canvasId] = {
+                canvas: canvas,
+                ctx: ctx,
+                isEmpty: true
+            };
+
+            // Mouse events - improved with consistent styling
+            canvas.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                drawing = true;
+                signatures[canvasId].isEmpty = false;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                ctx.beginPath();
+                ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+            });
+
+            canvas.addEventListener('mousemove', function(e) {
+                if (drawing) {
+                    e.preventDefault();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#333';
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+                    ctx.stroke();
+                }
+            });
+
+            canvas.addEventListener('mouseup', function(e) {
+                e.preventDefault();
+                drawing = false;
+            });
+
+            canvas.addEventListener('mouseleave', function(e) {
+                drawing = false;
+            });
+
+            // Touch events for mobile/tablet - improved to prevent interference
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                drawing = true;
+                signatures[canvasId].isEmpty = false;
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                ctx.beginPath();
+                ctx.moveTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
+            });
+
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (drawing && e.touches.length === 1) {
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = '#333';
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    const touch = e.touches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    ctx.lineTo((touch.clientX - rect.left) * scaleX, (touch.clientY - rect.top) * scaleY);
+                    ctx.stroke();
+                }
+            });
+
+            canvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                drawing = false;
+            });
+
+            canvas.addEventListener('touchcancel', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                drawing = false;
+            });
+        }
+
+        function clearSignature(canvasId) {
+            const sig = signatures[canvasId];
+            sig.ctx.clearRect(0, 0, sig.canvas.width, sig.canvas.height);
+            sig.isEmpty = true;
+        }
+
+        // Initialize signature pad for student only
+        initSignaturePad('student_signature');
+        
+        // Prevent accidental input during signature - blur any active inputs when signing starts
+        document.getElementById('student_signature').addEventListener('mousedown', function() {
+            document.activeElement.blur();
+        });
+        document.getElementById('student_signature').addEventListener('touchstart', function() {
+            document.activeElement.blur();
+        });
+
+        // Form submission
+        document.getElementById('loanAgreementForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Validate required signature
+            if (signatures['student_signature'].isEmpty) {
+                alert('Student signature is required.');
+                return;
+            }
+
+            // Validate equipment
+            if (scannedEquipment.length === 0) {
+                alert('At least one piece of equipment must be scanned.');
+                return;
+            }
+
+            // Collect form data
+            const formData = new FormData(this);
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            // Add student info
+            data.student_id = selectedStudent.id;
+            data.student_employee_num = selectedStudent.employee_num;
+
+            // Add equipment data
+            data.equipment_list = scannedEquipment;
+
+            // Add signature data
+            data.student_signature = signatures['student_signature'].canvas.toDataURL();
+
+            // Submit form
+            fetch('/admin/submit-loan-agreement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(result) {
+                if (result.success) {
+                    let message = 'Loan agreement successfully submitted!\nAgreement ID: ' + result.agreement_id;
+                    
+                    // Add checkout results to the alert
+                    if (result.checkout_results) {
+                        const cr = result.checkout_results;
+                        message += '\n\nEquipment Checkout Results:';
+                        message += '\n✅ Successfully checked out: ' + cr.successful_count + ' items';
+                        
+                        if (cr.failed_count > 0) {
+                            message += '\n❌ Failed to check out: ' + cr.failed_count + ' items';
+                            message += '\n\nFailed items:';
+                            cr.failed.forEach(function(error) {
+                                message += '\n• ' + error;
+                            });
+                        }
+                    }
+                    
+                    alert(message);
+                    window.location.href = "{{ url_for('assets_bp.dashboard') }}";
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to submit agreement'));
+                }
+            })
+            .catch(function(error) {
+                alert('Network error occurred. Please try again.');
+            });
+        });
+
+        // Auto-focus on student input when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('student_barcode_input').focus();
+        });
+    </script>
+</body>
+</html>

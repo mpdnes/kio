@@ -1,0 +1,32 @@
+# <type>: <subject>
+
+# <body>
+
+# <footer>
+
+# Type can be:
+#    feat     (new feature)
+#    fix      (bug fix)
+#    docs     (changes to documentation)
+#    style    (formatting, missing semi colons, etc; no code change)
+#    refactor (refactoring production code)
+#    test     (adding tests, refactoring test; no production code change)
+#    chore    (updating build tasks, package manager configs, etc; no production code change)
+
+# Subject line should:
+# - Use imperative, present tense: "change" not "changed" nor "changes"
+# - Be 50 characters or less
+# - Not end with a period
+
+# Body should:
+# - Wrap at 72 characters
+# - Explain *what* and *why* vs. *how*
+# - Can use multiple lines with "-" for bullet points if you want
+
+# Footer should:
+# - Reference Issues and Pull Requests liberally after "Closes", "Fixes", etc.
+# - Follow the Conventional Commit standard
+
+# Remember to:
+# - Separate subject from body with a blank line
+# - Remove the # and the text after it, these are comments

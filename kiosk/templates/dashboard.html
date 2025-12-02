@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Equipment Kiosk</title>
+    <!-- Link to Google Fonts for Hanken Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <!-- Fixed Header -->
+    <div class="header">
+        <div class="header-left">
+            <img class="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Organization Logo">
+            <div class="header-text">Equipment Management</div>
+        </div>
+        <div class="header-right">
+            <a href="{{ url_for('assets_bp.checkout_page') }}" class="cart-button">
+                Cart <span class="cart-count">0</span>
+            </a>
+            <div id="logoutTimer" class="logout-timer">Session: 2:00</div>
+            <a href="{{ url_for('auth_bp.logout') }}" class="logout-button">Logout</a>
+        </div>
+    </div>
+    <main>
+        <div class="center-container">
+            <div class="main-title">Welcome, <span style="font-size: 1.2em; font-weight: 800;">{{ user_name }}</span></div>
+            <div class="instructions">Choose an action below:</div>            <div class="button-container">
+                <a href="{{ url_for('assets_bp.checkout_page') }}" class="primary-button">
+                    Check Out Equipment
+                </a>
+                <a href="{{ url_for('assets_bp.checkin_page') }}" class="primary-button">
+                    Return Equipment
+                </a>
+                <a href="{{ url_for('assets_bp.asset_info_page') }}" class="secondary-button">
+                    View Equipment Information
+                </a>
+            </div>
+            
+            {% if is_vip %}
+            <div class="vip-section" style="margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #fff3e0 0%, #ffe0b3 100%); border-radius: 10px; border-left: 4px solid #ff6b00;">
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <h3 style="color: #e65100; margin-bottom: 0.5rem;">VIP Administrator Tools</h3>
+                    <p style="color: #bf360c; font-size: 0.9em;">Additional tools available for VIP users</p>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                    <a href="{{ url_for('admin_bp.asset_lookup_page') }}" class="secondary-button" style="background-color: #ff6b00; border-color: #ff6b00; color: white; box-shadow: 0 2px 4px rgba(255, 107, 0, 0.3);">
+                        Asset Lookup
+                    </a>
+                    <a href="{{ url_for('admin_bp.loan_agreement_page') }}" class="secondary-button" style="background-color: #28a745; border-color: #28a745; color: white; box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);">
+                        Loan Agreement
+                    </a>
+                </div>
+            </div>
+            {% endif %}            {% if assigned_assets %}
+            <div class="assigned-assets">
+                <h2>Your Current Equipment</h2>
+                <div class="asset-list">
+                    {% for asset in assigned_assets %}
+                    <div class="asset-card">
+                        <div class="asset-name">
+                            {% if asset.name and asset.name.strip() %}
+                                {{ asset.name }}
+                            {% elif asset.model and asset.model.name %}
+                                {{ asset.model.name }}
+                            {% else %}
+                                Asset {{ asset.asset_tag }}
+                            {% endif %}
+                        </div>
+                        <div class="asset-tag">Inventory: {{ asset.inventory_display_number }}</div>
+                        <div class="asset-status">Status: {{ asset.status_label.name }}</div>
+                        {% if asset.model %}
+                        <div class="asset-model">Model: {{ asset.model.name }}</div>
+                        {% endif %}
+                        {% if asset.last_checkout %}
+                        <div class="asset-checkout-date">Checked out: {{ asset.last_checkout.formatted }}</div>
+                        {% endif %}
+                        <div class="asset-checkout-note" style="color: #666; font-size: 0.9em; margin-top: 0.5em;">
+                            ✅ Checked out to you
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="no-assets" style="text-align: center; color: #666; margin: 2rem 0;">
+                <p>You don't have any equipment checked out currently.</p>
+                <p>Use the "Check Out Equipment" button above to get started.</p>
+            </div>
+            {% endif %}
+
+        </div>
+    </main>
+
+    <!-- Hidden barcode input for dashboard scanning -->
+    <input type="text" id="dashboardBarcodeInput" style="position: absolute; left: -9999px; opacity: 0;" autocomplete="off">
+    
+    <!-- Feedback message for dashboard actions -->
+    <div id="dashboardFeedback" class="feedback-message" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; padding: 15px 30px; border-radius: 8px; font-weight: 600; max-width: 90%; text-align: center;"></div>
+
+    <script>
+        const logoutTimer = document.getElementById('logoutTimer');
+        let sessionTimeout = 120; // 2 minutes in seconds
+
+        function updateTimer() {
+            const minutes = Math.floor(sessionTimeout / 60);
+            const seconds = sessionTimeout % 60;
+            logoutTimer.textContent = `Session: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (sessionTimeout <= 0) {
+                clearCart(); // Clear cart before redirecting
+                window.location.href = "{{ url_for('auth_bp.logout') }}";
+            } else {
+                sessionTimeout--;
+            }
+        }
+
+        setInterval(updateTimer, 1000);
+
+        // Reset timer on any activity
+        document.addEventListener('mousemove', () => {
+            sessionTimeout = 120;
+        });
+        document.addEventListener('keypress', () => {
+            sessionTimeout = 120;
+        });
+
+        // Update cart count from localStorage
+        function updateCartCount() {
+            const cartCount = localStorage.getItem('cartCount') || '0';
+            document.querySelector('.cart-count').textContent = cartCount;
+        }
+
+        // Update cart count when localStorage changes
+        window.addEventListener('storage', updateCartCount);
+
+        function clearCart() {
+            localStorage.removeItem('equipmentCart');
+            localStorage.removeItem('cartCount');
+            document.querySelector('.cart-count').textContent = '0';
+        }
+
+        // Dashboard barcode scanning functionality
+        const dashboardBarcodeInput = document.getElementById('dashboardBarcodeInput');
+        const dashboardFeedback = document.getElementById('dashboardFeedback');
+        let dashboardTimer;
+
+        // Focus barcode input when page loads and keep it focused
+        window.addEventListener('load', () => {
+            updateCartCount();
+            setTimeout(() => {
+                dashboardBarcodeInput.focus();
+            }, 100);
+        });
+
+        // Keep barcode input focused
+        document.addEventListener('click', () => {
+            setTimeout(() => {
+                dashboardBarcodeInput.focus();
+            }, 10);
+        });
+
+        // Handle barcode input from scanners on dashboard
+        dashboardBarcodeInput.addEventListener('input', (e) => {
+            console.log('Dashboard barcode input received:', e.target.value);
+            clearTimeout(dashboardTimer);
+            dashboardTimer = setTimeout(() => {
+                const barcode = e.target.value.trim();
+                console.log('Processing dashboard barcode:', barcode, 'Length:', barcode.length);
+                if (barcode) {
+                    processDashboardBarcode(barcode);
+                    e.target.value = '';
+                }
+            }, 100);
+        });
+
+        function processDashboardBarcode(barcode) {
+            showDashboardFeedback('Checking equipment...', 'processing');
+            
+            fetch("{{ url_for('assets_bp.process_asset_barcode') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ 
+                    barcode: barcode,
+                    action: 'info'
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    handleDashboardAssetInfo(barcode, data.data);
+                } else {
+                    showDashboardFeedback(data.error || 'Equipment not found.', 'error');
+                }
+                dashboardBarcodeInput.focus();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showDashboardFeedback('Error processing equipment barcode.', 'error');
+                dashboardBarcodeInput.focus();
+            });
+        }
+
+        function handleDashboardAssetInfo(barcode, assetInfo) {
+            const isCheckedOut = assetInfo.assigned_to && assetInfo.assigned_to.id;
+            const currentUserId = {{ session.user_id if session.user_id else 'null' }};
+            
+            if (isCheckedOut) {
+                // Asset is checked out
+                if (assetInfo.assigned_to.id == currentUserId) {
+                    // User's own asset - offer to return it
+                    showReturnModal(barcode, assetInfo);
+                } else {
+                    // Someone else's asset - offer to transfer
+                    showTransferModal(barcode, assetInfo);
+                }
+            } else {
+                // Asset is available - redirect to checkout page with the barcode
+                showDashboardFeedback('Redirecting to checkout...', 'success');
+                // Add to cart and go to checkout page
+                setTimeout(() => {
+                    const cart = JSON.parse(localStorage.getItem('equipmentCart') || '[]');
+                    const inventoryNumber = assetInfo.custom_fields?.['Inventory Number']?.value || assetInfo.asset_tag;
+                    const assetName = assetInfo.name || (assetInfo.model ? assetInfo.model.name : `Asset ${assetInfo.asset_tag}`);
+                    
+                    cart.push({
+                        barcode: barcode,
+                        name: assetName,
+                        inventory_number: inventoryNumber
+                    });
+                    
+                    localStorage.setItem('equipmentCart', JSON.stringify(cart));
+                    localStorage.setItem('cartCount', cart.length.toString());
+                    
+                    window.location.href = "{{ url_for('assets_bp.checkout_page') }}";
+                }, 1000);
+            }
+        }
+
+        function showReturnModal(barcode, assetInfo) {
+            const assetName = assetInfo.name || (assetInfo.model ? assetInfo.model.name : `Asset ${assetInfo.asset_tag}`);
+            const inventoryNumber = assetInfo.custom_fields?.['Inventory Number']?.value || assetInfo.asset_tag;
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            modal.innerHTML = `
+                <h3 style="color: #333; margin-bottom: 20px;">Return Equipment</h3>
+                <p style="color: #666; margin-bottom: 10px;"><strong>${assetName}</strong></p>
+                <p style="color: #666; margin-bottom: 10px;">Inventory: ${inventoryNumber}</p>
+                <p style="color: #666; margin-bottom: 30px;">This equipment is checked out to you. Would you like to return it?</p>
+                <div>
+                    <button id="returnYes" style="
+                        background-color: #28a745;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        margin: 0 10px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">Yes, Return It</button>
+                    <button id="returnNo" style="
+                        background-color: #6c757d;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        margin: 0 10px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">Cancel</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Handle return confirmation
+            document.getElementById('returnYes').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                performReturn(barcode);
+            });
+            
+            // Handle cancellation
+            document.getElementById('returnNo').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                dashboardBarcodeInput.focus();
+            });
+            
+            // Close modal when clicking overlay
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    dashboardBarcodeInput.focus();
+                }
+            });
+        }
+
+        function showTransferModal(barcode, assetInfo) {
+            const assetName = assetInfo.name || (assetInfo.model ? assetInfo.model.name : `Asset ${assetInfo.asset_tag}`);
+            const currentUser = assetInfo.assigned_to.name;
+            const currentUserId = assetInfo.assigned_to.id;
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            `;
+            
+            modal.innerHTML = `
+                <h3 style="color: #333; margin-bottom: 20px;">Equipment Already Checked Out</h3>
+                <p style="color: #666; margin-bottom: 10px;"><strong>${assetName}</strong></p>
+                <p style="color: #666; margin-bottom: 20px;">This equipment is currently checked out to <strong>${currentUser}</strong>.</p>
+                <p style="color: #666; margin-bottom: 30px;">What would you like to do?</p>
+                <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+                    <button id="transferYes" style="
+                        background-color: #007bff;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        min-width: 200px;
+                    ">Transfer to Me</button>
+                    <button id="returnEquipment" style="
+                        background-color: #28a745;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        min-width: 200px;
+                    ">Return Equipment</button>
+                    <button id="transferNo" style="
+                        background-color: #6c757d;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 16px;
+                        min-width: 200px;
+                    ">Cancel</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Handle transfer confirmation
+            document.getElementById('transferYes').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                performTransfer(barcode, currentUserId);
+            });
+            
+            // Handle return equipment (on behalf of other user)
+            document.getElementById('returnEquipment').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                performReturn(barcode);
+            });
+            
+            // Handle cancellation
+            document.getElementById('transferNo').addEventListener('click', () => {
+                document.body.removeChild(overlay);
+                dashboardBarcodeInput.focus();
+            });
+            
+            // Close modal when clicking overlay
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    dashboardBarcodeInput.focus();
+                }
+            });
+        }
+
+        function performReturn(barcode) {
+            showDashboardFeedback('Returning equipment...', 'processing');
+            
+            fetch("{{ url_for('assets_bp.checkin') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    barcode: barcode
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showDashboardFeedback(data.message || 'Equipment returned successfully!', 'success');
+                    // Refresh page after a delay to show updated asset list
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showDashboardFeedback(data.error || 'Return failed.', 'error');
+                }
+                dashboardBarcodeInput.focus();
+            })
+            .catch(error => {
+                console.error('Return error:', error);
+                showDashboardFeedback('Error processing return.', 'error');
+                dashboardBarcodeInput.focus();
+            });
+        }
+
+        function performTransfer(barcode, fromUserId) {
+            showDashboardFeedback('Transferring equipment...', 'processing');
+            
+            fetch("{{ url_for('assets_bp.transfer') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    barcode: barcode,
+                    from_user_id: fromUserId
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showDashboardFeedback(data.message || 'Equipment transferred successfully!', 'success');
+                    // Refresh page after a delay to show updated asset list
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showDashboardFeedback(data.error || 'Transfer failed.', 'error');
+                }
+                dashboardBarcodeInput.focus();
+            })
+            .catch(error => {
+                console.error('Transfer error:', error);
+                showDashboardFeedback('Error processing transfer.', 'error');
+                dashboardBarcodeInput.focus();
+            });
+        }
+
+        function showDashboardFeedback(message, type) {
+            dashboardFeedback.textContent = message;
+            dashboardFeedback.className = `feedback-message ${type}`;
+            
+            // Style based on type
+            if (type === 'success') {
+                dashboardFeedback.style.backgroundColor = '#d4edda';
+                dashboardFeedback.style.color = '#155724';
+                dashboardFeedback.style.borderColor = '#c3e6cb';
+            } else if (type === 'error') {
+                dashboardFeedback.style.backgroundColor = '#f8d7da';
+                dashboardFeedback.style.color = '#721c24';
+                dashboardFeedback.style.borderColor = '#f5c6cb';
+            } else if (type === 'processing') {
+                dashboardFeedback.style.backgroundColor = '#d1ecf1';
+                dashboardFeedback.style.color = '#0c5460';
+                dashboardFeedback.style.borderColor = '#bee5eb';
+            }
+            
+            dashboardFeedback.style.display = 'block';
+            
+            // Hide after 5 seconds unless it's a processing message
+            if (type !== 'processing') {
+                setTimeout(() => {
+                    dashboardFeedback.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Clear cart when logging out
+        document.querySelector('.logout-button').addEventListener('click', clearCart);
+
+    </script>
+</body>
+</html>
